@@ -1,0 +1,15 @@
+package com.example.notificationservice.model.dto;
+
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+public class NotificationResponseDto {
+    private String notificationId;
+    private Long userId;
+    private String type;
+    private String message;
+    private LocalDateTime sentAt;
+    private String status;                      // SUCCESS, FAILED
+}

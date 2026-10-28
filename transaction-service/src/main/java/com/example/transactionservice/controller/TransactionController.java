@@ -1,0 +1,60 @@
+package com.example.transactionservice.controller;
+
+import com.example.transactionservice.model.dto.MeTransferRequestDto;
+import com.example.transactionservice.model.dto.TransactionResponseDto;
+import com.example.transactionservice.model.dto.TransferRequestDto;
+import com.example.transactionservice.security.CurrentUser;
+import com.example.transactionservice.service.TransactionService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/transactions")
+@RequiredArgsConstructor
+public class TransactionController {
+
+    private final TransactionService transactionService;
+    private final CurrentUser currentUser;
+
+    private final Logger logger = LoggerFactory.getLogger(TransactionController.class);
+
+    @PostMapping("/me/transfer")
+    ResponseEntity<TransactionResponseDto> meTransfer(@Valid @RequestBody MeTransferRequestDto meTransferRequestDto){
+        logger.info("meTransfer, meTransferRequestDto is {}", meTransferRequestDto);
+
+        //This CurrentUser class we are using for controller endpoint logger only
+        String username = currentUser.getCurrentUsername();
+        logger.info("meTransfer, called by username : {}", username);
+
+        TransactionResponseDto transactionResponseDto = transactionService.meTransfer(meTransferRequestDto);
+        logger.info("meTransfer, transactionResponseDto is {}", transactionResponseDto);
+
+        return ResponseEntity.ok(transactionResponseDto);
+    }
+
+    @GetMapping("/me/history")
+    ResponseEntity<Page<TransactionResponseDto>> getMyTransactionHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ){
+
+        logger.info("getMyTransactionHistory, page is {}, size is {}", page, size);
+
+        //This CurrentUser class we are using for controller endpoint logger only
+        String username = currentUser.getCurrentUsername();
+        logger.info("getMyTransactionHistory, called by username : {}", username);
+
+        Page<TransactionResponseDto> transactionResponseDtoPage = transactionService.getMyTransactionHistory(page, size);
+        logger.info("getMyTransactionHistory, transactionResponseDtoPage is {}", transactionResponseDtoPage);
+
+        return ResponseEntity.ok(transactionResponseDtoPage);
+    }
+
+}

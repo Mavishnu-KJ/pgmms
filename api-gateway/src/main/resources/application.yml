@@ -1,0 +1,121 @@
+spring:
+  application:
+    name: api-gateway
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns: ["*"]
+            allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+            allowedHeaders: ["*"]
+            allowCredentials: false
+            exposedHeaders: ["Authorization"]
+
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      routes:
+        # ==================== PUBLIC ROUTES (No JWT required) ====================
+        - id: auth-public
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/register, /api/users/login, /auth/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
+
+        - id: swagger
+          uri: lb://user-service
+          predicates:
+            - Path=/swagger-ui/**, /v3/api-docs/**
+          filters:
+            - RewritePath=/(?<segment>.*), /${segment}
+
+        # ==================== PROTECTED ROUTES (JWT Required) ====================
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
+            - PreserveHostHeader
+            - RateLimitingFilter #If limit exceeded → returns HTTP 429 Too Many Requests
+            - JwtAuthenticationFilter
+
+        - id: wallet-service
+          uri: lb://wallet-service
+          predicates:
+            - Path=/api/wallets/**
+          filters:
+            - RewritePath=/api/wallets/(?<segment>.*), /api/wallets/${segment}
+            - PreserveHostHeader
+            - RateLimitingFilter #If limit exceeded → returns HTTP 429 Too Many Requests
+            - JwtAuthenticationFilter
+
+        - id: transaction-service
+          uri: lb://transaction-service
+          predicates:
+            - Path=/api/transactions/**, /api/transfer/**
+          filters:
+            - RewritePath=/(?<segment>.*), /${segment}
+            - PreserveHostHeader
+            - RateLimitingFilter #If limit exceeded → returns HTTP 429 Too Many Requests
+            - JwtAuthenticationFilter
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - RewritePath=/(?<segment>.*), /${segment}
+            - PreserveHostHeader
+            - RateLimitingFilter #If limit exceeded → returns HTTP 429 Too Many Requests
+            - JwtAuthenticationFilter
+
+# ====================== ACTUATOR CONFIG ======================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,circuitbreakers,retries"   # Only useful and safe endpoints
+  endpoint:
+    health:
+      show-details: always           # Change to 'when-authorized' in production
+    info:
+      access: unrestricted
+    circuitbreakers:
+      enabled: true
+    retries:
+      enabled: true
+
+#Health Check: http://localhost:8080/actuator/health
+#Circuit Breakers: http://localhost:8080/actuator/circuitbreakers
+#Retries: http://localhost:8080/actuator/retries
+#Info: http://localhost:8080/actuator/info
+
+info:
+  app:
+    name: ${spring.application.name}
+    spring-boot-version: ${spring-boot.version}
+    java-version: ${java.version}
+    description: Payment Wallet System - Microservices Architecture
+    author: Mavishnu KJ
+
+#============= RATE LIMIT =============
+resilience4j:
+  ratelimiter:
+    instances:
+      defaultRateLimit:
+        limitForPeriod: 20          # 20 requests
+        limitRefreshPeriod: 1s      # per second
+        timeoutDuration: 0ms
+
+# secret key for jwt token
+jwt:
+  secret: "PaymentWalletSystemStrongSecretKeyAtLeast64CharsLongAndRandomWithoutUnderScore"

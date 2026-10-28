@@ -1,0 +1,111 @@
+package com.example.userservice.service.impl;
+
+import com.example.userservice.exceptions.ResourceNotFoundException;
+import com.example.userservice.model.dto.LoginRequestDto;
+import com.example.userservice.model.dto.RegisterRequestDto;
+import com.example.userservice.model.dto.UserResponseDto;
+import com.example.userservice.model.entity.User;
+import com.example.userservice.repository.UserRepository;
+import com.example.userservice.service.UserService;
+import com.example.userservice.util.JwtUtil;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+
+
+    @Override
+    @Transactional
+    public UserResponseDto register(RegisterRequestDto registerRequestDto){
+        logger.info("register, registerRequestDto is {}", registerRequestDto);
+
+        //Check duplicates
+        if(userRepository.existsByUsername(registerRequestDto.getUsername())){
+            throw new ResourceNotFoundException("username already exists : "+registerRequestDto.getUsername());
+        }
+        if(userRepository.existsByEmail(registerRequestDto.getEmail())){
+            throw new ResourceNotFoundException("email already exists : "+registerRequestDto.getEmail());
+        }
+
+        //Map request Dto to Entity
+        User user = modelMapper.map(registerRequestDto, User.class);
+
+        //Hash the password
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        logger.info("register, user is {}", user);
+
+        //Save
+        User savedUser = userRepository.save(user);
+        logger.info("register, savedUser is {}", savedUser);
+
+        //Map Entity to Response Dto
+        UserResponseDto userResponseDto = modelMapper.map(savedUser, UserResponseDto.class);
+        logger.info("register, userResponseDto is {}", userResponseDto);
+
+        return userResponseDto;
+    }
+
+    @Override
+    @Transactional
+    public String generateToken(LoginRequestDto loginRequestDto){
+        logger.info("generateToken, loginRequestDto is {}", loginRequestDto);
+
+        //Check if user not found
+        User user = userRepository.findByUsername(loginRequestDto.getUsername())
+                        .orElseThrow(() -> new ResourceNotFoundException("Resource not found for "+loginRequestDto.getUsername()));
+
+        //Check password match
+        if(!passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword())){
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        //Generate token
+        //String token = jwtUtil.generateToken(user.getUsername());
+        //logger.info("generateToken, token is {}", token);
+
+        //Generate token using username and userId
+        String token = jwtUtil.generateToken(user.getUsername(), user.getId());
+        logger.info("generateToken using username and userId, token is {}", token);
+
+        return token;
+    }
+
+    @Override
+    public UserResponseDto getCurrentUser(){
+        logger.info("getCurrentUser");
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        logger.info("getCurrentUser, username is {}", username);
+
+        //Check if user not found
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Resource not found for "+username));
+
+        //Map entity to response dto
+        UserResponseDto userResponseDto = modelMapper.map(user, UserResponseDto.class);
+        logger.info("getCurrentUser, userResponseDto is {}", userResponseDto);
+
+        return userResponseDto;
+    }
+
+
+}
