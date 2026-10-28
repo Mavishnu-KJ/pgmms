@@ -1,5 +1,4 @@
-# Payment Wallet System
-
+# Payment Gateway & Merchant Management System
 A **distributed microservices-based Payment Wallet System** built using Spring Boot, demonstrating real-world backend architecture, resilience patterns, and transaction management.
 
 **Live Demo** | [Eureka dashboard](http://localhost:8761) (after running)
