@@ -51,8 +51,8 @@ This project is a **fully functional Payment Wallet System** with multiple micro
 
 ```bash
 # Clone the repo
-git clone https://github.com/Mavishnu-KJ/payment-wallet-system.git
-cd payment-wallet-system
+git clone https://github.com/Mavishnu-KJ/payment-merchant-system.git
+cd payment-merchant-system
 
 # Build and run all services
 mvn clean package -DskipTests
